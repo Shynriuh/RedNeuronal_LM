@@ -9,11 +9,63 @@ from tkinter.ttk import *
 puntos = list()
 deseados = list()
 
+x = np.arange(-9, 9, 0.1)
+y = np.arange(-9, 9, 0.1)
+xx, yy = np.meshgrid(x, y)
+grafica_conto = np.c_[xx.ravel(), yy.ravel()]
+
 def getDotColor(expectedOutput) -> str:
     if expectedOutput == 0:
         return "blue"
     if expectedOutput == 1:
         return "red"
+# Funcion de activacion
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+# Matriz Jacobiana
+def compute_jacobian(X, w1, w2, b1, b2, a1, a2):
+    num_samples = X.shape[0]
+    num_w1 = np.prod(w1.shape)
+    num_w2 = np.prod(w2.shape)
+    num_b1 = b1.size
+    num_b2 = b2.size
+
+    J = np.zeros((num_samples, num_w1 + num_w2 + num_b1 + num_b2))
+
+    for i in range(num_samples):
+        # Se deriva la funcion sigmoideal
+        sig_prime_a1 = a1[i] * (1 - a1[i])
+        sig_prime_a2 = a2[i] * (1 - a2[i])
+
+        # Se deriva la capa de salida
+        d_a2_d_w2 = a1[i, :, np.newaxis] * sig_prime_a2[:, np.newaxis]
+        d_a2_d_b2 = sig_prime_a2
+
+        # Se deriva la capa oculta
+        d_a1_d_w1 = X[i, :, np.newaxis] * sig_prime_a1[:, np.newaxis].T
+        d_a1_d_b1 = sig_prime_a1
+
+        # Se construye la matriz Jacobiana
+        J[i, :num_w1] = d_a1_d_w1.flatten()
+        J[i, num_w1:num_w1 + num_b1] = d_a1_d_b1
+        J[i, num_w1 + num_b1:num_w1 + num_b1 + num_w2] = d_a2_d_w2.flatten()
+        J[i, -num_b2:] = d_a2_d_b2
+
+    return J
+
+def extract_weight_updates(weight_update, w1, w2, b1, b2):
+    num_w1 = np.prod(w1.shape)
+    num_w2 = np.prod(w2.shape)
+    num_b1 = b1.size
+    num_b2 = b2.size
+
+    update_w1 = weight_update[:num_w1].reshape(w1.shape)
+    update_b1 = weight_update[num_w1:num_w1 + num_b1].reshape(b1.shape)
+    update_w2 = weight_update[num_w1 + num_b1:num_w1 + num_b1 + num_w2].reshape(w2.shape)
+    update_b2 = weight_update[-num_b2:].reshape(b2.shape)
+
+    return update_w1, update_w2, update_b1, update_b2
 
 class Window:
     def __init__(self, window):
