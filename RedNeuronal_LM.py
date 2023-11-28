@@ -139,47 +139,71 @@ class Window:
     
     # Inicio del algoritmo
     def start(self) -> None:
-        if(len(puntos) > 0):
-            puntosnp = []
-            deseadosnp = []
-            for i in range(len(puntos)):
-                puntosnp.append([puntos[i][0], puntos[i][1]])
-                deseadosnp.append(deseados[i])
-            nppuntos = np.array(puntosnp)
-            npdeseados = np.array(deseadosnp)
-        X = nppuntos
-        y = npdeseados.reshape(len(npdeseados),1)
-        self.w1 = np.random.random((2, 3))
-        self.b1 = np.zeros((1, 3))
-        self.w2 = np.random.random((3, 1))
-        self.b2 = np.zeros((1, 1))
-        self.learning_rate = 0.1
-        iter = 2000
-        for i in range(iter):
-            salidaO = sigmoid(np.dot(X, self.w1) + self.b1)
-            salidaS = sigmoid(np.dot(salidaO, self.w2) + self.b2)
-            salidaOGr = sigmoid(np.dot(grafica_conto, self.w1) + self.b1)
-            salidaSGr = sigmoid(np.dot(salidaOGr, self.w2) + self.b2)
-            z = salidaSGr.reshape(xx.shape)
-            self.window.update()
-            self.config_canvas()
-            for i in range(len(self.points)):
-                self.graph.plot(
-                    self.points[i][1],
-                    self.points[i][2],
-                    marker="o",
-                    c=getDotColor(self.pointsY[i]),
-                )
-            self.graph.contourf(xx, yy, z, cmap="seismic")
-            self.canvas.draw()
-            error = y - salidaS
-            delta = error * (salidaS * (1 - salidaS))
-            deltaO = (salidaO * (1 - salidaO)) * delta * self.w2.T
-            self.w2 += salidaS.T.dot(delta) * self.learning_rate
-            self.b2 += np.sum(delta, axis=0, keepdims=True) * self.learning_rate
-            self.w1 += X.T.dot(deltaO) * self.learning_rate
-            self.b1 += np.sum(deltaO, axis=0, keepdims=True) * self.learning_rate
-        print("Terminado")
+        print("Iniciar clasificación")
+
+        if len(puntos) == 0:
+            return
+
+        # Se preparan los datos de entrada y salida
+        X = np.array(puntos)
+        y = np.array(deseados).reshape(len(deseados), 1)
+
+        # Inicializacion de pesos y sesgos
+        if not hasattr(self, 'w1') or self.w1 is None:
+            self.w1 = np.random.random((2, 3))
+            self.b1 = np.zeros((1, 3))
+            self.w2 = np.random.random((3, 1))
+            self.b2 = np.zeros((1, 1))
+
+        lambda_ = 0.1
+        max_iter = 1000
+        prev_error = float('inf')
+
+        for i in range(max_iter):
+            for i in range(max_iter):
+                z1 = np.dot(X, self.w1) + self.b1
+                a1 = sigmoid(z1)
+                z2 = np.dot(a1, self.w2) + self.b2
+                a2 = sigmoid(z2)
+
+                error = y - a2
+                J = compute_jacobian(X, self.w1, self.w2, self.b1, self.b2, a1, a2)
+
+                H = J.T @ J + lambda_ * np.eye(J.shape[1])
+                weight_update = np.linalg.inv(H) @ J.T @ error
+                update_w1, update_w2, update_b1, update_b2 = extract_weight_updates(weight_update, self.w1, self.w2, self.b1, self.b2)
+                
+                self.w1 += update_w1
+                self.b1 += update_b1
+                self.w2 += update_w2
+                self.b2 += update_b2
+
+                new_error = np.linalg.norm(error)
+                if new_error < prev_error:
+                    lambda_ /= 10
+                else:
+                    lambda_ *= 10
+                prev_error = new_error
+
+                salidaOGr = sigmoid(np.dot(grafica_conto, self.w1) + self.b1)
+                salidaSGr = sigmoid(np.dot(salidaOGr, self.w2) + self.b2)
+                z = salidaSGr.reshape(xx.shape)
+
+                # Se actualiza la grafica
+                self.window.update()
+                self.config_canvas()
+
+                # Visualizacion de puntos en la grafica
+                for i in range(len(self.points)):
+                    self.graph.plot(
+                        self.points[i][1],
+                        self.points[i][2],
+                        marker="o",
+                        c=getDotColor(self.pointsY[i]),
+                    )
+                self.graph.contourf(xx, yy, z, cmap="seismic")
+                self.canvas.draw()
+
     
     # Evento del click para agregar un punto en la grafica
     def on_click(self, event: Event) -> None:
